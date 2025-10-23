@@ -4,6 +4,7 @@
 
 #ifndef PARSE_VEC3_H
 #define PARSE_VEC3_H
+#define MAX_INPUT 256
 
 #include <cstdio>
 #include <iostream>

@@ -4,7 +4,7 @@
 
 #ifndef PARSE_VEC3_H
 #define PARSE_VEC3_H
-#define MAX_INPUT 256
+// #define MAX_INPUT 256
 
 #include <cstdio>
 #include <iostream>
@@ -30,16 +30,33 @@ float halfAngleVFOV = 35;
 vec3 spherePos = vec3(0,0,2);
 float sphereRadius = 1; 
 
+//store multiple spheres from a file
+float sphere_x[MAX_INPUT], sphere_y[MAX_INPUT], sphere_z[MAX_INPUT];
+float sphere_r[MAX_INPUT];
+int sphere_count = 0;
+
 //Background Parameters
 vec3 background = vec3(0,0,0);
 
 //Material Paramters
+
+//material defaults
 vec3 ambient = vec3(0,0,0);
 vec3 diffuse = vec3(1,1,1);
 vec3 specular = vec3(0,0,0);
-float phong_cos = 5; //ns
+float curr_phong_cos = 5; //ns
 vec3 transmissive = vec3(0,0,0);
-float ior = 1; //index of reflection
+float curr_ior = 1; //index of reflection
+
+//store multiple materials from a file
+float ambient_r[MAX_INPUT], ambient_g[MAX_INPUT], ambient_b[MAX_INPUT];
+float diffuse_r[MAX_INPUT], diffuse_g[MAX_INPUT], diffuse_b[MAX_INPUT];
+float specular_r[MAX_INPUT], specular_g[MAX_INPUT], specular_b[MAX_INPUT];
+float phone_cos[MAX_INPUT];
+float trans_r[MAX_INPUT], trans_g[MAX_INPUT], trans_b[MAX_INPUT];
+float ior[MAX_INPUT];
+int mat_count = 0;
+
 
 //Light Parameters
 vec3 ambient_light = vec3(0,0,0);
@@ -60,8 +77,11 @@ void parseSceneFile(std::string fileName){
     if (strncmp(line, "sphere:", 7) == 0) {
       float x, y, z, r;
       if (sscanf(line + 7, "%f %f %f %f", &x, &y, &z, &r) == 4) {
-        spherePos = vec3(x, y, z);
-        sphereRadius = r;
+        sphere_x[sphere_count] = x;
+        sphere_y[sphere_count] = y;
+        sphere_z[sphere_count] = z;
+        sphere_r[sphere_count] = r;
+        sphere_count++;
         printf("Sphere: (%f, %f, %f), r = %f\n", x, y, z, sphereRadius);
       } else {
 				std::cerr << "invalid sphere position" << line << std::endl;
@@ -142,12 +162,29 @@ void parseSceneFile(std::string fileName){
       if (sscanf(line + 9, 
         "%f %f %f %f %f %f %f %f %f %f %f %f %f %f", 
         &ar, &ag, &ab, &dr, &dg, &db, &sr, &sg, &sb, &ns, &tr, &tg, &tb, &new_ior) == 14) {
-        ambient = vec3(ar, ag, ab);
-        diffuse = vec3(dr, dg, db);
-        specular = vec3(sr, sg, sb);
-        phong_cos = ns;
-        transmissive = vec3(tr, tg, tb);
-        ior = new_ior;
+      
+        //storing each value into an array to deal with multiple materials in a .txt file
+        ambient_r[mat_count] = ar;
+        ambient_g[mat_count] = ag;
+        ambient_b[mat_count] = ab;
+
+        diffuse_r[mat_count] = dr;
+        diffuse_g[mat_count] = dg;
+        diffuse_b[mat_count] = db;
+
+        specular_r[mat_count] = sr;
+        specular_g[mat_count] = sg;
+        specular_b[mat_count] = sb;
+        phone_cos[mat_count] = ns;
+
+        trans_r[mat_count] = tr;
+        trans_g[mat_count] = tg;
+        trans_b[mat_count] = tb;
+        ior[mat_count] = new_ior;
+
+        mat_count++; //up the material count
+
+        //print statement for testing
         printf("Material: %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n", ar, ag, ab, dr, dg, db, sr, sg, sb, ns, tr, tg, tb, new_ior);
       } else {
 				std::cerr << "invalid " << line << std::endl;

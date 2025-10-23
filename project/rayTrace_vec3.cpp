@@ -46,6 +46,27 @@ bool raySphereIntersect(vec3 start, vec3 dir, vec3 center, float radius){
   return false;
 }
 
+float whereRaySphereIntersect(vec3 start, vec3 dir, vec3 center, float radius){
+  float a = dot(dir,dir); 
+  vec3 toStart = (start - center);
+  float b = 2 * dot(dir,toStart);
+  float c = dot(toStart,toStart) - radius*radius;
+  float discr = b*b - 4*a*c;
+  if (discr < 0) return -1;
+  else{
+    float t0 = (-b + sqrt(discr))/(2*a);
+    float t1 = (-b - sqrt(discr))/(2*a);
+    if (t0 > 0 && t1 > 0) 
+      return (t0 < t1) ? t0 : t1; //only return the smaller distance
+    else if (t0 > 0) //t1 was negative 
+      return t0;
+    else if (t1 > 0) //t0 was negative
+      return t1;
+    else
+      return -1; //no intersection
+  }
+}
+
 int main(int argc, char** argv){
 
   //Read command line paramaters to get scene file
@@ -71,12 +92,37 @@ int main(int argc, char** argv){
       float v = (halfH - (imgH)*((j+0.5)/imgH));
       vec3 p = eye - d*forward + u*right + v*up;
       vec3 rayDir = (p - eye).normalized();  //Normalizing here is optional
-      bool hit = raySphereIntersect(eye,rayDir,spherePos,sphereRadius);
+
+      //setting up parameters for ray intersection
+      bool hit = false;
+      int sphere_num = -1;
+      int closest_hit = -1;
+
+      //account for more than one sphere
+      for (int s = 0; s < sphere_count; s++) {
+        spherePos = vec3(sphere_x[s], sphere_y[s], sphere_z[s]);
+        sphereRadius = sphere_r[s];
+
+        //logic for where the ray intersects the sphere and accounts for overlapping spheres
+        float hit_where = whereRaySphereIntersect(eye, rayDir, spherePos, sphereRadius);
+        if (hit_where > 0 && (closest_hit < 0 || hit_where < closest_hit)) {
+          closest_hit = hit_where;
+          hit = raySphereIntersect(eye,rayDir,spherePos,sphereRadius);
+          sphere_num = s;
+        }
+      }
+      //color logic
       Color color;
-      if (hit) color = Color(1,1,1);
-      else color = Color(0,0,0);
-      outputImg.setPixel(i,j, color);
-      //outputImg.setPixel(i,j, Color(fabs(i/imgW),fabs(j/imgH),fabs(0))); //TODO - Understand: Try this, what is it visualizing?
+      if (hit) {
+        if (mat_count != 0 && sphere_num >= 0) {
+          color = Color(ambient_r[sphere_num], ambient_g[sphere_num], ambient_b[sphere_num]);
+        } else {
+          color = Color(1, 1, 1);
+        }
+      } else {
+        color = Color(0, 0, 0);
+      }
+      outputImg.setPixel(i, j, color);
     }
   }
   auto t_end = std::chrono::high_resolution_clock::now();

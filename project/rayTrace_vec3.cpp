@@ -87,11 +87,10 @@ int main(int argc, char** argv){
   auto t_start = std::chrono::high_resolution_clock::now();
   for (int i = 0; i < img_width; i++){
     for (int j = 0; j < img_height; j++){
-      //TODO - Understand: In what way does this assumes the basis is orthonormal?
       float u = (halfW - (imgW)*((i+0.5)/imgW));
       float v = (halfH - (imgH)*((j+0.5)/imgH));
       vec3 p = eye - d*forward + u*right + v*up;
-      vec3 rayDir = (p - eye).normalized();  //Normalizing here is optional
+      vec3 rayDir = (p - eye).normalized();
 
       //setting up parameters for ray intersection
       bool hit = false;
@@ -105,8 +104,8 @@ int main(int argc, char** argv){
 
         //logic for where the ray intersects the sphere and accounts for overlapping spheres
         float hit_where = whereRaySphereIntersect(eye, rayDir, spherePos, sphereRadius);
-        if (hit_where > 0 && (closest_hit < 0 || hit_where < closest_hit)) {
-          closest_hit = hit_where;
+        if (hit_where > 0 && (closest_hit < 0 || hit_where < closest_hit)) { //check if the sphere was nearest to the camera
+          closest_hit = hit_where; //updating the closest intersection distance
           hit = raySphereIntersect(eye,rayDir,spherePos,sphereRadius);
           sphere_num = s;
         }
@@ -114,7 +113,7 @@ int main(int argc, char** argv){
       //color logic
       Color color;
       if (hit) {
-        if (mat_count != 0 && sphere_num >= 0) {
+        if (mat_count != 0) { //more than one material
           color = Color(ambient_r[sphere_num], ambient_g[sphere_num], ambient_b[sphere_num]);
         } else {
           color = Color(1, 1, 1);

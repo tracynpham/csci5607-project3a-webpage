@@ -4,7 +4,7 @@
 
 #ifndef PARSE_VEC3_H
 #define PARSE_VEC3_H
-// #define MAX_INPUT 256
+#define MAX_INPUT 256
 
 #include <cstdio>
 #include <iostream>
@@ -61,6 +61,10 @@ int mat_count = 0;
 //Light Parameters
 vec3 ambient_light = vec3(0,0,0);
 float max_depth = 5;
+
+float point_light_r[MAX_INPUT], point_light_g[MAX_INPUT], point_light_b[MAX_INPUT];
+float point_light_x[MAX_INPUT], point_light_y[MAX_INPUT], point_light_z[MAX_INPUT];
+int num_lights = 0;
 
 void parseSceneFile(std::string fileName){
   //TODO: Override the default values with new data from the file "fileName"
@@ -205,36 +209,44 @@ void parseSceneFile(std::string fileName){
       float r, g, b;
       float x, y, z;
       if (sscanf(line + 12, "%f %f %f %f %f %f", &r, &g, &b, &x, &y, &z) == 6) {
-          vec3 pointLightColor = vec3(r, g, b);
-          vec3 pointLightPos = vec3(x, y, z);
-          printf("Point light color: (%f, %f, %f)\n", r, g, b);
-          printf("Point light position: (%f, %f, %f)\n", x, y, z);
+        //Point light color
+        point_light_r[num_lights] = r;
+        point_light_g[num_lights] = g;
+        point_light_b[num_lights] = b;
+
+        //Point light position
+        point_light_x[num_lights] = x;
+        point_light_y[num_lights] = y;
+        point_light_z[num_lights] = z;
+
+        num_lights++;
+        printf("Point light color: (%f, %f, %f)\n", r, g, b);
+        printf("Point light position: (%f, %f, %f)\n", x, y, z);
       }
       else {
-          std::cerr << "invalid point light settings" << line << std::endl;
+        std::cerr << "invalid point light settings" << line << std::endl;
       }
     }
     if (strncmp(line, "spot_light:", 11) == 0) {
-        float r, g, b;
-        float px, py, pz;
-        float dx, dy, dz;
-        float ang1, ang2;
-        if (sscanf(line + 11, "%f %f %f %f %f %f %f %f %f %f %f",
-            &r, &g, &b, &px, &py, &pz, &dx, &dy, &dz, &ang1, &ang2) == 11) {
-            vec3 spotLightColor = vec3(r, g, b);
-            vec3 spotLightPos = vec3(px, py, pz);
-            vec3 spotLightDir = vec3(dx, dy, dz);
-            float angle1 = ang1;
-            float angle2 = ang2;
-            printf("Spot light color: (%f, %f, %f)\n", r, g, b);
-            printf("Spot light position: (%f, %f, %f)\n", px, py, pz);
-            printf("Spot light direciton: (%f, %f, %f)\n", dx, dy, dz);
-            printf("Angle 1: %f\n", ang1);
-            printf("Angle2: %f\n", ang2);
-        }
-        else {
-            std::cerr << "invalid spot light settings" << line << std::endl;
-        }
+      float r, g, b;
+      float px, py, pz;
+      float dx, dy, dz;
+      float ang1, ang2;
+      if (sscanf(line + 11, "%f %f %f %f %f %f %f %f %f %f %f",
+        &r, &g, &b, &px, &py, &pz, &dx, &dy, &dz, &ang1, &ang2) == 11) {
+        vec3 spotLightColor = vec3(r, g, b);
+        vec3 spotLightPos = vec3(px, py, pz);
+        vec3 spotLightDir = vec3(dx, dy, dz);
+        float angle1 = ang1;
+        float angle2 = ang2;
+        printf("Spot light color: (%f, %f, %f)\n", r, g, b);
+        printf("Spot light position: (%f, %f, %f)\n", px, py, pz);
+        printf("Spot light direciton: (%f, %f, %f)\n", dx, dy, dz);
+        printf("Angle 1: %f\n", ang1);
+        printf("Angle2: %f\n", ang2);
+      } else {
+        std::cerr << "invalid spot light settings" << line << std::endl;
+      }
     }
     if (strncmp(line, "ambient_light:", 14) == 0) {
       float r, g, b;

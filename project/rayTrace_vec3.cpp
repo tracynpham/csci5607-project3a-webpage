@@ -29,6 +29,7 @@
 
 //Scene file parser
 #include "parse_vec3.h"
+#include <algorithm>
 
 //added struct to hold information about the ray intersection with the sphere
 struct HitInformation {
@@ -92,12 +93,60 @@ bool FindIntersection(vec3 start, vec3 dir, HitInformation& hitInfo) {
 }
 
 Color ApplyLightingModel(vec3 start, vec3 dir, HitInformation& hitInfo) {
-  Color contribution = Color(0,0,0); //black
+  vec3 contribution = vec3(0, 0, 0);
+  int mat_index = sphere_material_index[hitInfo.sphere_num];
+
+  // getting diffuse, specular, and ambient coefficients from the arrays we parsed
+  vec3 kd = vec3(diffuse_r[mat_index], diffuse_g[mat_index], diffuse_b[mat_index]);
+  vec3 ks = vec3(specular_r[mat_index], specular_g[mat_index], specular_b[mat_index]);
+  vec3 ka = vec3(ambient_r[mat_index], ambient_g[mat_index], ambient_b[mat_index]);
+  float ns = phong_cos[mat_index]; // phong exponent
+
+  // adding the contribution from the ambient lighting once , no need to loop through the lights to get it 
+  contribution = contribution + ka;
+
+  // compute view vector pointing from hitpoint to the camera
+  vec3 V = (eye - hitInfo.point).normalized();
+
+  // loop through all lights in the scene
   for (int i = 0; i < num_lights; i++) {
-    //light logic goes here
+    // get light position and color, compute light vector pointing from hitpoint towards the light 
+    vec3 lightPos = vec3(point_light_x[i], point_light_y[i], point_light_z[i]);
+    vec3 lightColor = vec3(point_light_r[i], point_light_g[i], point_light_b[i]);
+    vec3 L = (lightPos - hitInfo.point).normalized();
+
+    // shadow ray, small offset to avoid shadows intersectiong the surface
+    vec3 shadow = hitInfo.point + hitInfo.normal * 0.001f;
+    HitInformation shadow_hit;
+    // check if light is blocked by an object
+    bool blocked = FindIntersection(shadow, L, shadow_hit);
+    float light_distance = (lightPos - hitInfo.point).length(); 
+    if (blocked && (shadow_hit.point - shadow).length() < light_distance){
+      // this means light was blocked, skip adding diffuse and specular contributions from this light
+      continue;
+    }
+    
+    // diffuse lighting
+    float diff = std::max(0.0f, dot(hitInfo.normal, L)); // n dot L
+    vec3 diffuse = kd * diff;
+
+    //specular lighting (blinn-phong)
+    vec3 H = (L + V).normalized();
+    float spec_angle = std::max(0.0f, dot(hitInfo.normal, H));
+    vec3 specular = ks * pow(spec_angle, ns);
+
+    // combine diffuse + specular contributions
+    vec3 totalLight = vec3(
+        diffuse.x * lightColor.x + specular.x * lightColor.x,
+        diffuse.y * lightColor.y + specular.y * lightColor.y,
+        diffuse.z * lightColor.z + specular.z * lightColor.z
+    );
+    // add this light's contribution to the running total
+    contribution = contribution + totalLight;
   }
   //more light logic after
-  return contribution;
+  contribution.clampTo1(); // clamp so none of the exponents exceed 1
+  return Color(contribution.x, contribution.y, contribution.z); // this is where i converted it to a color
 }
 
 Color evaluateRayTree(vec3 start, vec3 dir) {
@@ -108,6 +157,7 @@ Color evaluateRayTree(vec3 start, vec3 dir) {
     return ApplyLightingModel(start, dir, hit);
   } else {
     Color color = Color(background.x, background.y, background.z);
+    return color;
   }
 }
 

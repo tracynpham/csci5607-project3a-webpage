@@ -31,6 +31,7 @@ vec3 spherePos = vec3(0,0,2);
 float sphereRadius = 1; 
 
 //store multiple spheres from a file
+int sphere_material_index[MAX_INPUT];
 float sphere_x[MAX_INPUT], sphere_y[MAX_INPUT], sphere_z[MAX_INPUT];
 float sphere_r[MAX_INPUT];
 int sphere_count = 0;
@@ -52,7 +53,7 @@ float curr_ior = 1; //index of reflection
 float ambient_r[MAX_INPUT], ambient_g[MAX_INPUT], ambient_b[MAX_INPUT];
 float diffuse_r[MAX_INPUT], diffuse_g[MAX_INPUT], diffuse_b[MAX_INPUT];
 float specular_r[MAX_INPUT], specular_g[MAX_INPUT], specular_b[MAX_INPUT];
-float phone_cos[MAX_INPUT];
+float phong_cos[MAX_INPUT];
 float trans_r[MAX_INPUT], trans_g[MAX_INPUT], trans_b[MAX_INPUT];
 float ior[MAX_INPUT];
 int mat_count = 0;
@@ -85,6 +86,7 @@ void parseSceneFile(std::string fileName){
         sphere_y[sphere_count] = y;
         sphere_z[sphere_count] = z;
         sphere_r[sphere_count] = r;
+        sphere_material_index[sphere_count] = mat_count - 1;
         sphere_count++;
         printf("Sphere: (%f, %f, %f), r = %f\n", x, y, z, sphereRadius);
       } else {
@@ -179,7 +181,7 @@ void parseSceneFile(std::string fileName){
         specular_r[mat_count] = sr;
         specular_g[mat_count] = sg;
         specular_b[mat_count] = sb;
-        phone_cos[mat_count] = ns;
+        phong_cos[mat_count] = ns;
 
         trans_r[mat_count] = tr;
         trans_g[mat_count] = tg;

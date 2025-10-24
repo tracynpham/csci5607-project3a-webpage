@@ -113,14 +113,14 @@ Color evaluateRayTree(vec3 start, vec3 dir, int depth) {
 }
 
 vec3 reflect(vec3 d, vec3 n) {
-  return d-2.0f*dot(d, n)*n;
+  return (d-2.0f*dot(d, n)*n).normalized();
 }
 
 bool refract(vec3 d, vec3 n, float special_n, vec3& t) {
   float cos_theta = dot(d, n);
   float k = 1.0f - special_n * special_n * (1.0f - cos_theta * cos_theta);
   if (k < 0.0f) return false; 
-  t = special_n * (d - n * cos_theta) - n*sqrt(k);
+  t = (special_n * (d - n * cos_theta) - n*sqrt(k)).normalized();
   return true;
 }
 
@@ -135,7 +135,7 @@ Color ApplyLightingModel(vec3 start, vec3 dir, HitInformation& hitInfo, int dept
   float ns = phong_cos[mat_index]; // phong exponent
 
   // adding the contribution from the ambient lighting once , no need to loop through the lights to get it 
-  contribution = contribution + ka;
+  contribution = contribution + (ka * ambient_light);
 
   // compute view vector pointing from hitpoint to the camera
   vec3 V = (eye - hitInfo.point).normalized();
@@ -168,51 +168,61 @@ Color ApplyLightingModel(vec3 start, vec3 dir, HitInformation& hitInfo, int dept
     vec3 specular = ks * pow(spec_angle, ns);
 
     // combine diffuse + specular contributions
-    vec3 totalLight = vec3(
-        diffuse.x * lightColor.x + specular.x * lightColor.x,
-        diffuse.y * lightColor.y + specular.y * lightColor.y,
-        diffuse.z * lightColor.z + specular.z * lightColor.z
-    );
-    //Following the pseudocode from lecture slides 13
-    if (depth < max_depth) {
-      vec3 n = hitInfo.normal;
-      vec3 r = reflect(dir, n); //Fresnel
-      vec3 t;
-      float c;
-      float kr, kg, kb;
-      float n2 = 1.5f;
-      if (dot(dir, n) < 0) { // entering
-        refract(dir, n, 1.0f / n2, t);
-        c = -dot(dir, n);
-        kr = kg = kb = 1.0f;
-      } else { // leaving
-        float t0 = (hitInfo.point - start).length();
-        //Beer's Law Attenuation
-        kr = exp(-ka.x * t0);
-        kg = exp(-ka.y * t0);
-        kb = exp(-ka.z * t0);
-        vec3 neg_n = vec3(-hitInfo.normal.x, -hitInfo.normal.y, -hitInfo.normal.z);
-        if (refract(dir, neg_n, n2, t)) { //Snell's Law
-          c = dot(t, n);
-        } else {
-          vec3 reflect_start = hitInfo.point + n * 0.001f;
-          Color reflect_color = evaluateRayTree(reflect_start, r.normalized(), depth + 1);
-          return Color(kr * reflect_color.r, kg * reflect_color.g, kb * reflect_color.b); //total internal reflection
-        }
-      }
-    //Fresnel Effect
-    float R0 = powf((n2 - 1.0f) / (n2 + 1.0f), 2.0f); //Schlick approximation
-    float R = R0 + (1.0f - R0) * powf(1.0f - c, 5.0f);
-    vec3 reflect_start = hitInfo.point + n * 0.001f;
-    vec3 refract_start = hitInfo.point - n * 0.001f;
-    Color reflect_color = evaluateRayTree(reflect_start, r.normalized(), depth + 1);
-    Color refract_color = evaluateRayTree(refract_start, t.normalized(), depth + 1);
-    contribution = contribution + vec3(kr, kg, kb) * (R * vec3(reflect_color.r, reflect_color.g, reflect_color.b) + (1.0f - R) * vec3(refract_color.r, refract_color.g, refract_color.b));
-    }
+    float attenuation = 1.0f / (light_distance * light_distance);
+    vec3 totalLight = (diffuse + specular) * lightColor * attenuation;
+
     // add this light's contribution to the running total
     contribution = contribution + totalLight;
   }
   //more light logic after
+  //Following the pseudocode from lecture slides 13
+  if (depth < max_depth) {
+      vec3 n = hitInfo.normal;
+      vec3 r = reflect(dir, n); //Fresnel, reflection direction 
+      vec3 t; // refraction direction
+      float c;
+      float kr, kg, kb; // for Beer's kaw
+      float n2 = 1.5f; // refraction index, making it glass-like
+      bool canRefract;
+
+      if (dot(dir, n) < 0) { // ray is entering the object
+          canRefract = refract(dir, n, 1.0f / n2, t); // refract
+          c = -dot(dir, n);
+          kr = kg = kb = 1.0f;
+      }
+      else { // ray is exiting the object
+          vec3 n = vec3(-hitInfo.normal.x, -hitInfo.normal.y, -hitInfo.normal.z); // flip the normal
+          canRefract = refract(dir, n, n2, t);
+          c = -dot(t, n);
+          //Beer's Law Attenuation
+          float distance = hitInfo.dist;
+          kr = exp(-ka.x * distance);
+          kg = exp(-ka.y * distance);
+          kb = exp(-ka.z * distance);
+      }
+      //Fresnel Effect
+      float R0 = powf((n2 - 1.0f) / (n2 + 1.0f), 2.0f); //Schlick approximation
+      /*float R = R0 + (1.0f - R0) * powf(1.0f - c, 5.0f);*/
+      float R;
+      if (canRefract) {
+          R = R0 + (1.0f - R0) * powf(1.0f - c, 5.0f);
+      }
+      else {
+          R = 1.0f;
+      }
+
+      // recursive rays
+      vec3 reflect_start = hitInfo.point + n * 0.001f;
+      vec3 refract_start = hitInfo.point - n * 0.001f;
+      Color reflect_color = evaluateRayTree(reflect_start, r.normalized(), depth + 1);
+      Color refract_color = evaluateRayTree(refract_start, t.normalized(), depth + 1);
+
+      vec3 refract_contrib = vec3(refract_color.r, refract_color.g, refract_color.b) * vec3(kr, kg, kb);
+      vec3 reflect_contrib = vec3(reflect_color.r, reflect_color.g, reflect_color.b);
+
+      //contribution = contribution + vec3(kr, kg, kb) * (R * vec3(reflect_color.r, reflect_color.g, reflect_color.b) + (1.0f - R) * vec3(refract_color.r, refract_color.g, refract_color.b));
+      contribution = contribution + R * reflect_contrib + (1.0f - R) * refract_contrib;
+  }
   contribution.clampTo1(); // clamp so none of the exponents exceed 1
   return Color(contribution.x, contribution.y, contribution.z); // this is where i converted it to a color
 }

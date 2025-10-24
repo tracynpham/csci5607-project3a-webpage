@@ -30,6 +30,14 @@
 //Scene file parser
 #include "parse_vec3.h"
 
+//added struct to hold information about the ray intersection with the sphere
+struct HitInformation {
+  vec3 point; //hit point
+  vec3 normal; //normal along hit point
+  int sphere_num; //index of the hit sphere
+  bool hit = false;
+};
+
 //Tests is the ray intersects the sphere
 bool raySphereIntersect(vec3 start, vec3 dir, vec3 center, float radius){
   float a = dot(dir,dir); //TODO - Understand: What do we know about "a" if "dir" is normalized on creation?
@@ -66,6 +74,42 @@ float whereRaySphereIntersect(vec3 start, vec3 dir, vec3 center, float radius){
       return -1; //no intersection
   }
 }
+bool FindIntersection(vec3 start, vec3 dir, HitInformation& hitInfo) {
+  float closest_dist = -1;
+  for (int s = 0; s < sphere_count; s++) {
+    vec3 spherePos = vec3(sphere_x[s], sphere_y[s], sphere_z[s]);
+    float radius = sphere_r[s];
+    float dist = whereRaySphereIntersect(start, dir, spherePos, radius);
+    if (dist > 0 && (closest_dist < 0 || dist < closest_dist)) {
+      closest_dist = dist;
+      hitInfo.sphere_num = s;
+      hitInfo.hit = true;
+      hitInfo.point = start + dir * dist;
+      hitInfo.normal = (hitInfo.point - spherePos).normalized();
+    }
+  }
+  return hitInfo.hit;
+}
+
+Color ApplyLightingModel(vec3 start, vec3 dir, HitInformation& hitInfo) {
+  Color contribution = Color(0,0,0); //black
+  for (int i = 0; i < num_lights; i++) {
+    //light logic goes here
+  }
+  //more light logic after
+  return contribution;
+}
+
+Color evaluateRayTree(vec3 start, vec3 dir) {
+  bool hit_something = false;
+  HitInformation hit;
+  hit_something = FindIntersection(start, dir, hit);
+  if (hit_something) {
+    return ApplyLightingModel(start, dir, hit);
+  } else {
+    Color color = Color(background.x, background.y, background.z);
+  }
+}
 
 int main(int argc, char** argv){
 
@@ -91,36 +135,7 @@ int main(int argc, char** argv){
       float v = (halfH - (imgH)*((j+0.5)/imgH));
       vec3 p = eye - d*forward + u*right + v*up;
       vec3 rayDir = (p - eye).normalized();
-
-      //setting up parameters for ray intersection
-      bool hit = false;
-      int sphere_num = -1;
-      int closest_hit = -1;
-
-      //account for more than one sphere
-      for (int s = 0; s < sphere_count; s++) {
-        spherePos = vec3(sphere_x[s], sphere_y[s], sphere_z[s]);
-        sphereRadius = sphere_r[s];
-
-        //logic for where the ray intersects the sphere and accounts for overlapping spheres
-        float hit_where = whereRaySphereIntersect(eye, rayDir, spherePos, sphereRadius);
-        if (hit_where > 0 && (closest_hit < 0 || hit_where < closest_hit)) { //check if the sphere was nearest to the camera
-          closest_hit = hit_where; //updating the closest intersection distance
-          hit = raySphereIntersect(eye,rayDir,spherePos,sphereRadius);
-          sphere_num = s;
-        }
-      }
-      //color logic
-      Color color;
-      if (hit) {
-        if (mat_count != 0) { //more than one material
-          color = Color(ambient_r[sphere_num], ambient_g[sphere_num], ambient_b[sphere_num]);
-        } else {
-          color = Color(1, 1, 1);
-        }
-      } else {
-        color = Color(0, 0, 0);
-      }
+      Color color = evaluateRayTree(eye, rayDir);
       outputImg.setPixel(i, j, color);
     }
   }

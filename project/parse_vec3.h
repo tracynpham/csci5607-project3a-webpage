@@ -67,6 +67,10 @@ float point_light_r[MAX_INPUT], point_light_g[MAX_INPUT], point_light_b[MAX_INPU
 float point_light_x[MAX_INPUT], point_light_y[MAX_INPUT], point_light_z[MAX_INPUT];
 int num_lights = 0;
 
+float dir_light_r[MAX_INPUT], dir_light_g[MAX_INPUT], dir_light_b[MAX_INPUT];
+float dir_light_x[MAX_INPUT], dir_light_y[MAX_INPUT], dir_light_z[MAX_INPUT];
+int num_dir_lights = 0;
+
 void parseSceneFile(std::string fileName){
   //TODO: Override the default values with new data from the file "fileName"
   FILE* myFile = fopen(fileName.c_str(), "r");
@@ -200,8 +204,16 @@ void parseSceneFile(std::string fileName){
       float dirR, dirG, dirB;
       float dirX, dirY, dirZ;
       if (sscanf(line + 18, "%f %f %f %f %f %f", &dirR, &dirG, &dirB, &dirX, &dirY, &dirZ) == 6) {
-        vec3 dir_light_color = vec3(dirR, dirG, dirB);
-        vec3 dir_light_direction = vec3(dirX, dirY, dirZ);
+        // vec3 dir_light_color = vec3(dirR, dirG, dirB);
+        // vec3 dir_light_direction = vec3(dirX, dirY, dirZ);
+        dir_light_r[num_dir_lights] = dirR;
+        dir_light_g[num_dir_lights] = dirG;
+        dir_light_b[num_dir_lights] = dirB;
+
+        dir_light_x[num_dir_lights] = dirX;
+        dir_light_y[num_dir_lights] = dirY;
+        dir_light_z[num_dir_lights] = dirZ;
+        num_dir_lights++;
         printf("Directional light: %f %f %f %f %f %f\n", dirR, dirG, dirB, dirX, dirY, dirZ);
       } else {
 				std::cerr << "invalid directional light" << line << std::endl;

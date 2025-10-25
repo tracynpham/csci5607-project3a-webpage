@@ -113,7 +113,7 @@ Color evaluateRayTree(vec3 start, vec3 dir, int depth) {
 }
 
 vec3 reflect(vec3 d, vec3 n) {
-  return (d-2.0f*dot(d, n)*n).normalized();
+  return (d-2.0f*dot(d, n)*n);
 }
 
 bool refract(vec3 d, vec3 n, float r, vec3& t) {
@@ -122,7 +122,7 @@ bool refract(vec3 d, vec3 n, float r, vec3& t) {
   float cos_theta = -dot(n, d);
   float k = 1.0f - r * r * (1.0f - cos_theta * cos_theta);
   if (k < 0.0f) return false; 
-  t = (r * d) + ((r * cos_theta) - sqrt(k)) * n;
+  t = (r * d) + ((r * cos_theta) - std::sqrt(k)) * n;
   return true;
 }
 
@@ -219,7 +219,7 @@ Color ApplyLightingModel(vec3 start, vec3 dir, HitInformation& hitInfo, int dept
       }
       // fresnel effect
       float R0 = powf((n1 - n2) / (n1 + n2), 2.0f); //Schlick approximation
-      float c = entering ? fabs(dot(dir * -1, nRefract)) : fabs(dot(t.normalized(), nRefract));
+      float c = entering ? std::fabs(dot(dir * -1, nRefract)) : std::fabs(dot(t.normalized(), nRefract));
       float R = canRefract ? (R0 + (1.0f - R0) * powf(1.0f - c, 5.0f)) : 1.0f;
       contribution = contribution + (R * reflect_contrib + (1.0f - R) * (k));
     }

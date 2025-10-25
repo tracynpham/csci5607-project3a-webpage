@@ -61,7 +61,7 @@ int mat_count = 0;
 
 //Light Parameters
 vec3 ambient_light = vec3(0,0,0);
-float max_depth = 5;
+int max_depth = 5;
 
 float point_light_r[MAX_INPUT], point_light_g[MAX_INPUT], point_light_b[MAX_INPUT];
 float point_light_x[MAX_INPUT], point_light_y[MAX_INPUT], point_light_z[MAX_INPUT];
@@ -90,9 +90,9 @@ void parseSceneFile(std::string fileName){
         sphere_y[sphere_count] = y;
         sphere_z[sphere_count] = z;
         sphere_r[sphere_count] = r;
-        sphere_material_index[sphere_count] = mat_count - 1;
+        sphere_material_index[sphere_count] = (mat_count > 0) ? (mat_count - 1) : 0; //avoid invalid indexing
         sphere_count++;
-        printf("Sphere: (%f, %f, %f), r = %f\n", x, y, z, sphereRadius);
+        printf("Sphere: (%f, %f, %f), r = %f\n", x, y, z, r);
       } else {
 				std::cerr << "invalid sphere position" << line << std::endl;
 			}
@@ -272,10 +272,10 @@ void parseSceneFile(std::string fileName){
       }
     }
     if (strncmp(line, "max_depth:", 10) == 0) {
-      float mx_dpth;
-      if (sscanf(line + 10, "%f", &mx_dpth) == 1) {
+      int mx_dpth;
+      if (sscanf(line + 10, "%d", &mx_dpth) == 1) {
         max_depth = mx_dpth;
-        printf("Max depth: %f\n", mx_dpth);
+        printf("Max depth: %d\n", mx_dpth);
       } else {
         std::cerr << "invalid max depth" << line << std::endl;
       }

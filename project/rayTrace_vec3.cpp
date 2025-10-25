@@ -116,11 +116,13 @@ vec3 reflect(vec3 d, vec3 n) {
   return (d-2.0f*dot(d, n)*n).normalized();
 }
 
-bool refract(vec3 d, vec3 n, float special_n, vec3& t) {
-  float cos_theta = dot(d, n);
-  float k = 1.0f - special_n * special_n * (1.0f - cos_theta * cos_theta);
+bool refract(vec3 d, vec3 n, float r, vec3& t) {
+  d = d.normalized();
+  n = n.normalized();
+  float cos_theta = -dot(n, d);
+  float k = 1.0f - r * r * (1.0f - cos_theta * cos_theta);
   if (k < 0.0f) return false; 
-  t = (special_n * d - (n * cos_theta) - n*sqrt(k)).normalized();
+  t = (r * d) + ((r * cos_theta) - sqrt(k)) * n;
   return true;
 }
 
@@ -180,73 +182,47 @@ Color ApplyLightingModel(vec3 start, vec3 dir, HitInformation& hitInfo, int dept
   //Following the pseudocode from lecture slides 13
   if (depth < max_depth) {
       float mat_ior = ior[mat_index];
-      bool entering = dot(dir, hitInfo.normal) < 0.0f; // determine if ray is intereing or exiting the object
+      bool entering = dot(dir, hitInfo.normal) < 0.0f; // determine if ray is entering or exiting the object
       
       // set surface normal to point in correct direction for refractio
       // flip it when exiting 
-      vec3 nRefract;
-      if (entering) {
-          nRefract = hitInfo.normal;
-      }
-      else {
-          nRefract = vec3(-hitInfo.normal.x, -hitInfo.normal.y, -hitInfo.normal.z);
-      }
+      vec3 n = hitInfo.normal;
+      vec3 nRefract = entering ? n : vec3(-n.x, -n.y, -n.z);
 
       // set refractive indices for snell's law
       float n1 = entering ? 1.0f : mat_ior;
       float n2 = entering ? mat_ior : 1.0f;
       float snell_ratio = n1 / n2;
 
-      // compute refracted ray direction using snell's law
-      vec3 t;
-      bool canRefract = refract(dir * -1, nRefract, snell_ratio, t);
-      // only store refracted direction when entering the surface
-      vec3 t_dir = entering ? t.normalized() : vec3(0.0f, 0.0f, 0.0f);
-
-      // fresnel effect
-      float R0 = powf((n1 - n2) / (n1 + n2), 2.0f); //Schlick approximation
-      float c = entering ? fabs(dot(dir * -1, nRefract)) : fabs(dot(t_dir, nRefract));
-      float R;
-      if (canRefract) {
-          R = R0 + (1.0f - R0) * powf(1.0f - c, 5.0f);
-      }
-      else {
-          R = 1.0f;
-      }
-
-      // beer-lambert attenuation
-      vec3 beer_atten(1.0f, 1.0f, 1.0f);
-      if (!entering) {
-          // when exiting, apply exponential attenuation to simulate light absorption
-          float distance = hitInfo.dist;
-          beer_atten.x = exp(-kt.x * distance);
-          beer_atten.y = exp(-kt.y * distance);
-          beer_atten.z = exp(-kt.z * distance);
-      }
-
-      // reflect ray 
-      //vec3 r = reflect(dir, nRefract);
+      // reflect ray computation (Fresnell effect)
       vec3 r = reflect(dir, nRefract).normalized();
-      vec3 reflect_start = hitInfo.point + r * 0.001f;
-      Color reflect_color = evaluateRayTree(reflect_start, r.normalized(), depth + 1);
+      vec3 reflect_start = hitInfo.point + nRefract * 0.001f;
+      Color reflect_color = evaluateRayTree(reflect_start, r, depth + 1);
       vec3 reflect_contrib = vec3(reflect_color.r, reflect_color.g, reflect_color.b);
 
-
       // refraction ray (only if refract is true)
-      vec3 refract_contrib = vec3(0.0f, 0.0f, 0.0f);
+      vec3 t;
+      bool canRefract = refract(dir, nRefract, snell_ratio, t); //snell's law
+      vec3 k = vec3(0.0f, 0.0f, 0.0f);
       if (canRefract) {
-          vec3 refract_start = hitInfo.point + nRefract * 0.001f;
+          vec3 t_dir = t.normalized();
+          vec3 refract_start = hitInfo.point + t_dir * 0.001f;
           Color refract_color = evaluateRayTree(refract_start, t.normalized(), depth + 1);
-          refract_contrib = vec3(refract_color.r, refract_color.g, refract_color.b);
+          k = vec3(refract_color.r, refract_color.g, refract_color.b);
+          // beer-lambert attenuation when exiting
+          if (!entering) {
+            float distance = hitInfo.dist;
+            k.x *= exp(-kt.x * distance);
+            k.y *= exp(-kt.y * distance);
+            k.z *= exp(-kt.z * distance);
+          }
       }
-
-      // apply beer-lambert when it is exiting 
-      if (!entering) {
-          refract_contrib = refract_contrib * beer_atten;
-      }
-      
-      contribution = contribution + (R * reflect_contrib + (1.0f - R) * (kt * refract_contrib));
-  }
+      // fresnel effect
+      float R0 = powf((n1 - n2) / (n1 + n2), 2.0f); //Schlick approximation
+      float c = entering ? fabs(dot(dir * -1, nRefract)) : fabs(dot(t.normalized(), nRefract));
+      float R = canRefract ? (R0 + (1.0f - R0) * powf(1.0f - c, 5.0f)) : 1.0f;
+      contribution = contribution + (R * reflect_contrib + (1.0f - R) * (k));
+    }
   contribution.clampTo1(); // clamp so none of the exponents exceed 1
   return Color(contribution.x, contribution.y, contribution.z); // this is where i converted it to a color
 }

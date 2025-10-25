@@ -1,13 +1,3 @@
-//CSCI 5607 HW3 - Rays & Files
-//This HW has three steps:
-// 1. Compile and run the program (the program takes a single command line argument)
-// 2. Understand the code in this file (rayTrace_vec3.cpp), in particular be sure to understand:
-//     -How ray-sphere intersection works
-//     -How the rays are being generated
-//     -The pipeline from rays, to intersection, to pixel color
-//    After you finish this step, and understand the math, take the HW quiz on canvas
-// 3. Update the file parse_vec3.h so that the function parseSceneFile() reads the passed in file
-//     and sets the relevant global variables for the rest of the code to product to correct image
 
 //To Compile: g++ -fsanitize=address -std=c++11 rayTrace_vec3.cpp
 
@@ -46,7 +36,7 @@ Color evaluateRayTree(vec3 start, vec3 dir, int depth = 0);
 
 //Tests is the ray intersects the sphere
 bool raySphereIntersect(vec3 start, vec3 dir, vec3 center, float radius){
-  float a = dot(dir,dir); //TODO - Understand: What do we know about "a" if "dir" is normalized on creation?
+  float a = dot(dir,dir);
   vec3 toStart = (start - center);
   float b = 2 * dot(dir,toStart);
   float c = dot(toStart,toStart) - radius*radius;
@@ -60,6 +50,7 @@ bool raySphereIntersect(vec3 start, vec3 dir, vec3 center, float radius){
   return false;
 }
 
+//returns were exactly the ray intersected the sphere
 float whereRaySphereIntersect(vec3 start, vec3 dir, vec3 center, float radius){
   float a = dot(dir,dir); 
   vec3 toStart = (start - center);
@@ -80,6 +71,7 @@ float whereRaySphereIntersect(vec3 start, vec3 dir, vec3 center, float radius){
       return -1; //no intersection
   }
 }
+//if the sphere was intersected, then save the information about it in the HitInformation struct
 bool FindIntersection(vec3 start, vec3 dir, HitInformation& hitInfo) {
   float closest_dist = -1;
   for (int s = 0; s < sphere_count; s++) {

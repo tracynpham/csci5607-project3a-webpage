@@ -1,6 +1,5 @@
 
 //Set the global scene parameter variables
-//TODO: Set the scene parameters based on the values in the scene file
 
 #ifndef PARSE_VEC3_H
 #define PARSE_VEC3_H
@@ -281,13 +280,11 @@ void parseSceneFile(std::string fileName){
       }
     }
   }
-
-  //TODO: Create an orthogonal camera basis, based on the provided up and right vectors
   printf("Orthogonal Camera Basis:\n");
-
   forward = forward.normalized();
   right = cross(up, forward).normalized();
   up = cross(forward, right).normalized();
+
   printf("forward: %f,%f,%f\n",forward.x,forward.y,forward.z);
   printf("right: %f,%f,%f\n",right.x,right.y,right.z);
   printf("up: %f,%f,%f\n",up.x,up.y,up.z);

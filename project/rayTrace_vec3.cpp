@@ -174,7 +174,7 @@ Color ApplyLightingModel(vec3 start, vec3 dir, HitInformation& hitInfo, int dept
     vec3 totalLight = (diffuse + specular) * lightColor * attenuation;
 
     // add this light's contribution to the running total
-    contribution = contribution + totalLight * (1.0f / num_dir_lights);
+    contribution = contribution + totalLight * (1.0f / num_lights);
   }
   //more light logic after
   //Following the pseudocode from lecture slides 13

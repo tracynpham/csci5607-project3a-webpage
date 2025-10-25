@@ -117,10 +117,10 @@ vec3 reflect(vec3 d, vec3 n) {
 }
 
 bool refract(vec3 d, vec3 n, float special_n, vec3& t) {
-  float cos_theta = -dot(d, n);
+  float cos_theta = dot(d, n);
   float k = 1.0f - special_n * special_n * (1.0f - cos_theta * cos_theta);
   if (k < 0.0f) return false; 
-  t = (special_n * (d - n * cos_theta) - n*sqrt(k)).normalized();
+  t = (special_n * d - (n * cos_theta) - n*sqrt(k)).normalized();
   return true;
 }
 
@@ -133,6 +133,7 @@ Color ApplyLightingModel(vec3 start, vec3 dir, HitInformation& hitInfo, int dept
   vec3 kd = vec3(diffuse_r[mat_index], diffuse_g[mat_index], diffuse_b[mat_index]);
   vec3 ks = vec3(specular_r[mat_index], specular_g[mat_index], specular_b[mat_index]);
   vec3 ka = vec3(ambient_r[mat_index], ambient_g[mat_index], ambient_b[mat_index]);
+  vec3 kt = vec3(trans_r[mat_index], trans_g[mat_index], trans_b[mat_index]);
   float ns = phong_cos[mat_index]; // phong exponent
 
   // adding the contribution from the ambient lighting once , no need to loop through the lights to get it 
@@ -173,58 +174,78 @@ Color ApplyLightingModel(vec3 start, vec3 dir, HitInformation& hitInfo, int dept
     vec3 totalLight = (diffuse + specular) * lightColor * attenuation;
 
     // add this light's contribution to the running total
-    contribution = contribution + totalLight;
+    contribution = contribution + totalLight * (1.0f / num_dir_lights);
   }
   //more light logic after
   //Following the pseudocode from lecture slides 13
   if (depth < max_depth) {
-    vec3 n = hitInfo.normal;
-    vec3 r = reflect(dir, n); //Fresnel, reflection direction 
-    vec3 t; // refraction direction
-    float c;
-    float kr, kg, kb; // for Beer's kaw
-    vec3 k;
-    float n2 = 1.5f; // refraction index, making it glass-like
-    bool canRefract;
-    if (dot(dir, n) < 0) { // ray is entering the object
-      canRefract = refract(dir, n, n2, t); // refract
-      c = -dot(dir, n);
-      kr = kg = kb = 1.0f;
-    }
-    else { // ray is exiting the object
-      //Beer's Law Attenuation
-      float distance = hitInfo.dist * 0.5f;
-      kr = exp(-ka.x * distance);
-      kg = exp(-ka.y * distance);
-      kb = exp(-ka.z * distance);
-      n = vec3(-n.x, -n.y, -n.z); // flip the normal
-      if (refract(dir, n, 1.0f / n2, t)) {
-        c = dot(t, n);
-      } else {
-        k = vec3(kr, kg, kb);
+      float mat_ior = ior[mat_index];
+      bool entering = dot(dir, hitInfo.normal) < 0.0f; // determine if ray is intereing or exiting the object
+      
+      // set surface normal to point in correct direction for refractio
+      // flip it when exiting 
+      vec3 nRefract;
+      if (entering) {
+          nRefract = hitInfo.normal;
       }
-    }
-    //Fresnel Effect
-    float R0 = powf((n2 - 1.0f) / (n2 + 1.0f), 2.0f); //Schlick approximation
-    float R;
-    if (canRefract) {
-      R = R0 + (1.0f - R0) * powf(1.0f - c, 5.0f);
-    }
-    else {
-      R = 1.0f;
-    }
+      else {
+          nRefract = vec3(-hitInfo.normal.x, -hitInfo.normal.y, -hitInfo.normal.z);
+      }
 
-    // recursive rays
-    vec3 reflect_start = hitInfo.point + n * 0.001f;
-    vec3 refract_start = hitInfo.point - n * 0.001f;
-    Color reflect_color = evaluateRayTree(reflect_start, r.normalized(), depth + 1);
-    Color refract_color = evaluateRayTree(refract_start, t.normalized(), depth + 1);
+      // set refractive indices for snell's law
+      float n1 = entering ? 1.0f : mat_ior;
+      float n2 = entering ? mat_ior : 1.0f;
+      float snell_ratio = n1 / n2;
 
-    vec3 refract_contrib = vec3(refract_color.r, refract_color.g, refract_color.b) * k;
-    vec3 reflect_contrib = vec3(reflect_color.r, reflect_color.g, reflect_color.b);
+      // compute refracted ray direction using snell's law
+      vec3 t;
+      bool canRefract = refract(dir * -1, nRefract, snell_ratio, t);
+      // only store refracted direction when entering the surface
+      vec3 t_dir = entering ? t.normalized() : vec3(0.0f, 0.0f, 0.0f);
 
-    //contribution = contribution + vec3(kr, kg, kb) * (R * vec3(reflect_color.r, reflect_color.g, reflect_color.b) + (1.0f - R) * vec3(refract_color.r, refract_color.g, refract_color.b));
-    contribution = contribution + R * reflect_contrib + (1.0f - R) * refract_contrib;
+      // fresnel effect
+      float R0 = powf((n1 - n2) / (n1 + n2), 2.0f); //Schlick approximation
+      float c = entering ? fabs(dot(dir * -1, nRefract)) : fabs(dot(t_dir, nRefract));
+      float R;
+      if (canRefract) {
+          R = R0 + (1.0f - R0) * powf(1.0f - c, 5.0f);
+      }
+      else {
+          R = 1.0f;
+      }
+
+      // beer-lambert attenuation
+      vec3 beer_atten(1.0f, 1.0f, 1.0f);
+      if (!entering) {
+          // when exiting, apply exponential attenuation to simulate light absorption
+          float distance = hitInfo.dist;
+          beer_atten.x = exp(-kt.x * distance);
+          beer_atten.y = exp(-kt.y * distance);
+          beer_atten.z = exp(-kt.z * distance);
+      }
+
+      // reflect ray 
+      //vec3 r = reflect(dir, nRefract);
+      vec3 r = reflect(dir, nRefract).normalized();
+      vec3 reflect_start = hitInfo.point + r * 0.001f;
+      Color reflect_color = evaluateRayTree(reflect_start, r.normalized(), depth + 1);
+      vec3 reflect_contrib = vec3(reflect_color.r, reflect_color.g, reflect_color.b);
+
+
+      // refraction ray (only if refract is true)
+      vec3 refract_contrib = vec3(0.0f, 0.0f, 0.0f);
+      if (canRefract) {
+          vec3 refract_start = hitInfo.point + nRefract * 0.001f;
+          Color refract_color = evaluateRayTree(refract_start, t.normalized(), depth + 1);
+          refract_contrib = vec3(refract_color.r, refract_color.g, refract_color.b);
+      }
+
+      // apply beer-lambert when it is exiting 
+      if (!entering) {
+          refract_contrib = refract_contrib * beer_atten;
+      }
+      
+      contribution = contribution + (R * reflect_contrib + (1.0f - R) * (kt * refract_contrib));
   }
   contribution.clampTo1(); // clamp so none of the exponents exceed 1
   return Color(contribution.x, contribution.y, contribution.z); // this is where i converted it to a color

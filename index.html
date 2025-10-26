@@ -10,13 +10,29 @@
     <main>
         <h1>showcase of project 3a: ray tracing 1</h1>
         <h3>by tracy pham and mary duong</h3>
-        <h2>sample scenes from examples</h2>
-        <div>
-            <p>
-                1. ambient_sphere
-            </p>
-            <img>
+        <h2>Rendered scenes</h2>
+
+        <div class="sphere-examples">
+            <h3>1. Sample Images</h3>
+            <div class="image-row">
+                <div class="image-container">
+                <h4>bear.txt</h4>
+                <img src="images/bear.png" alt="bear png"/>
+                </div>
+                <div class="image-container">
+                <h4>spheres1.txt</h4>
+                <img src="images/spheres1.png" alt="sphere 1"/>
+                </div>
+            </div>
         </div>
+      </div>
+        <div>
+            <div class="image-container">
+                <h4>camera.txt</h4>
+                <p>camera angle and multiple point light</p>
+                <img src="images/camera.png" alt="camera"/>
+            </div>
+
         <div>
             <p>
                 2. spot_sphere
@@ -38,13 +54,25 @@
             <img>
         </div>
     
-        <h2>features we implemented</h2>
+        <h2>Additional features we (attempted to) implemented</h2>
+        <ul>
+            <li>PNG output</li>
+            <li>Shadows</li>
+            <li>Multiple Light Sources</li>
+            <li>Refraction</li>
+            <li>Reflection</li>
+        </ul>
     </main> 
 
-    <h2>difficulties we encountered</h2>
+    <h2>Difficulties we encountered</h2>
     <p id="difficulties">
-        hi
+    Tracy and I (Mary) collaborated on this project since we were able to work together for Project 3a. Despite having a partner, we still encountered challenges with the raytracer. In particular, we found the 
+    ApplyLightingModel() function difficult to implement correctly, especially when handling material refraction. One thing that helped us significantly was using the pseudocode and our experience 
+    from HW3, which provided a clear structure and a solid foundation for our code. Much of our implementation built on the HW3_Vec3 files, and we then made several modifications: tweaking the parser, adding a 
+    struct to track ray intersections, and implementing ray recursion to apply lighting and material effects. However, as mentioned, we struggled to make our final rendered images match the expected results. We 
+    suspect that the issues may stem from how we handle refraction or reflection within ApplyLightingModel().
     </p>
+
     <a href="https://github.com/tracynpham/csci5607-project3a-webpage/tree/main/project">
         link to download project files (change to zip file later)
     </a>

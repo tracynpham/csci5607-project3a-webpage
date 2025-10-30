@@ -91,7 +91,7 @@ bool FindIntersection(vec3 start, vec3 dir, HitInformation& hitInfo) {
 }
 Color evaluateRayTree(vec3 start, vec3 dir, int depth) {
   //base case
-  if (depth >= max_depth) {
+  if (depth > max_depth) {
     return Color(0,0,0);
   }
   bool hit_something = false;
@@ -190,7 +190,8 @@ Color ApplyLightingModel(vec3 start, vec3 dir, HitInformation& hitInfo, int dept
       vec3 r = reflect(dir, nRefract).normalized();
       vec3 reflect_start = hitInfo.point + nRefract * 0.001f;
       Color reflect_color = evaluateRayTree(reflect_start, r, depth + 1);
-      vec3 reflect_contrib = vec3(reflect_color.r, reflect_color.g, reflect_color.b);
+      vec3 reflect_contrib = vec3(reflect_color.r, reflect_color.g, reflect_color.b) * ks;
+      /*vec3 reflect_contrib = vec3(0, 0, 0);*/
 
       // refraction ray (only if refract is true)
       vec3 t;
@@ -199,21 +200,25 @@ Color ApplyLightingModel(vec3 start, vec3 dir, HitInformation& hitInfo, int dept
       if (canRefract) {
           vec3 t_dir = t.normalized();
           vec3 refract_start = hitInfo.point + t_dir * 0.001f;
+          //vec3 refract_start = hitInfo.point + t_dir;
           Color refract_color = evaluateRayTree(refract_start, t.normalized(), depth + 1);
-          k = vec3(refract_color.r, refract_color.g, refract_color.b);
+          k = vec3(refract_color.r, refract_color.g, refract_color.b) * kt;
           // beer-lambert attenuation when exiting
-          if (!entering) {
+          /*if (!entering) {
             float distance = hitInfo.dist;
             k.x *= exp(-kt.x * distance);
             k.y *= exp(-kt.y * distance);
             k.z *= exp(-kt.z * distance);
-          }
+          }*/
       }
+      
+      //vec3 k = vec3(0, 0, 0);
       // fresnel effect
-      float R0 = powf((n1 - n2) / (n1 + n2), 2.0f); //Schlick approximation
-      float c = entering ? std::fabs(dot(dir * -1, nRefract)) : std::fabs(dot(t.normalized(), nRefract));
-      float R = canRefract ? (R0 + (1.0f - R0) * powf(1.0f - c, 5.0f)) : 1.0f;
-      contribution = contribution + (R * reflect_contrib + (1.0f - R) * (k));
+      //float R0 = powf((n1 - n2) / (n1 + n2), 2.0f); //Schlick approximation
+      //float c = entering ? std::fabs(dot(dir * -1, nRefract)) : std::fabs(dot(t.normalized(), nRefract));
+      //float R = canRefract ? (R0 + (1.0f - R0) * powf(1.0f - c, 5.0f)) : 1.0f;
+      //contribution = contribution + (R * reflect_contrib + (1.0f - R) * (k));
+      contribution = contribution + (reflect_contrib + (1.0f) * (k));
     }
   contribution.clampTo1(); // clamp so none of the exponents exceed 1
   return Color(contribution.x, contribution.y, contribution.z); // this is where i converted it to a color
